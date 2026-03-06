@@ -20,6 +20,7 @@ Gemini Watermark Tool removes Gemini visible watermarks from images using **math
 
 - **Fast & offline**: single executable, **zero dependencies**
 - **GUI + CLI**: desktop app with drag & drop, or command-line for automation
+- **AI Denoise**: GPU-accelerated FDnCNN neural network for residual cleanup (NCNN + Vulkan)
 - **Smart detection**: three-stage NCC algorithm with confidence scoring — skip non-watermarked images automatically
 - **Batch processing**: process entire directories with thumbnail preview and progress tracking
 - **Cross-platform**: Windows / Linux / macOS / Android (CLI)
@@ -41,7 +42,7 @@ The desktop GUI provides an interactive workflow for both single-image and batch
 - Drag & drop or open any supported image
 - Auto-detect watermark size (48×48 / 96×96) or select manually
 - **Custom watermark mode**: draw a search region interactively, resize with 8-point anchors, fine-tune position with WASD keys
-- **Multi-scale guided detection (Snap Engine)**: coarse-to-fine NCC template matching auto-locks to the exact watermark position within your drawn region — supports variable sizes from 24–160px
+- **Multi-scale guided detection (Snap Engine)**: coarse-to-fine NCC template matching auto-locks to the exact watermark position within your drawn region — supports variable sizes from 32–320px with adjustable search range slider
 - Real-time before/after comparison (press **V**)
 - One-key processing (**X**) and revert (**Z**)
 - Zoom, pan (Space/Alt + drag, mouse wheel), and fit-to-window
@@ -58,13 +59,32 @@ Three built-in methods are available:
 
 | Method | Description | Best for |
 |--------|-------------|----------|
-| **NS** (default) | Navier-Stokes based inpainting — propagates surrounding pixel flow into the damaged region | General-purpose cleanup with smooth results |
+| **NS** | Navier-Stokes based inpainting — propagates surrounding pixel flow into the damaged region | General-purpose cleanup with smooth results |
 | **TELEA** | Fast marching method — fills inward from boundary pixels based on distance weighting | Quick processing, good for small residuals |
 | **Soft Inpaint** | Gradient-weighted Gaussian blend — uses the watermark alpha as a soft mask for weighted blending | Preserving fine texture in photographic content |
 
 The cleanup controls appear automatically in **Custom** mode under the Detected Info panel. You can adjust the **method**, **strength** (0–100%), and **inpaint radius** (1–25 px) to fine-tune the result.
 
-> 🔮 **Coming soon**: A future release will introduce **lightweight AI-based inpainting** (DnCNN / FFDNet, ~2 MB models) for even better cleanup of residuals that conventional methods cannot fully resolve. Stay tuned.
+### AI Denoise — FDnCNN Neural Network (New in v0.2.5)
+
+![AI Denoise](artworks/gui_inpaint_ai_fdncnn.gif)
+
+**AI Denoise** uses a GPU-accelerated neural network ([FDnCNN](https://github.com/cszn/KAIR)) to clean up watermark residuals that conventional inpainting methods struggle with — particularly the faint sparkle edges and corner artifacts left after reverse alpha blending on resized images.
+
+Unlike NS/TELEA which require a binary mask to know *which* pixels are damaged, AI Denoise examines a 41×41 pixel neighborhood around each point and learns from training data what "normal" image content looks like. Combined with gradient-masked blending from the alpha map, it repairs only the artifact pixels while preserving clean background detail.
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| **Strength** | 0–300% | 120% | Controls mask coverage — values above 100% expand repair to weaker gradient edges |
+| **Sigma** | 1–150 | 50 | Noise level estimation — higher values denoise more aggressively |
+
+**Technical details:**
+- **Model**: FDnCNN Color, 20-layer Conv+ReLU, FP16 (~1.3 MB embedded in executable)
+- **Inference**: [NCNN](https://github.com/Tencent/ncnn) with Vulkan GPU acceleration, automatic CPU fallback
+- **Pipeline**: gradient mask from alpha map → NCNN inference on padded ROI → per-pixel masked blend
+- **Performance**: < 5 ms per region on modern GPUs, ~20 ms on CPU
+
+AI Denoise is the **recommended default** when available. The GPU device name is displayed below the controls. If GPU initialization fails, the tool automatically falls back to NS inpainting.
 
 ### Batch Processing
 
@@ -356,6 +376,8 @@ Use `--force-small` or `--force-large` to override automatic detection.
 
 All binaries are statically linked with no external runtime dependencies.
 
+> **AI Denoise** uses Vulkan for GPU acceleration. Most modern GPUs (NVIDIA, AMD, Intel) with up-to-date drivers support Vulkan. If no Vulkan GPU is detected, inference automatically falls back to CPU (OpenMP multi-threaded).
+
 ## Troubleshooting
 
 ### "The image doesn't look different after processing"
@@ -414,6 +436,12 @@ $env:VCPKG_ROOT = "C:\vcpkg"          # Windows PowerShell
 The project uses `CMakePresets.json` for cross-platform configuration.
 
 ```bash
+# Clone with submodules (NCNN source)
+git clone --recursive https://github.com/allenk/GeminiWatermarkTool.git
+
+# Or if already cloned:
+git submodule update --init --recursive
+
 # List available presets
 cmake --list-presets
 ```
@@ -473,11 +501,13 @@ cmake --build --preset android-arm64-Release
 
 | Preset | Platform | Backend | Notes |
 |--------|----------|---------|-------|
-| `windows-x64-Release` | Windows | D3D11 + OpenGL | Default, best compatibility |
-| `windows-x64-OpenGL-Release` | Windows | OpenGL only | For GPU-accelerated OpenGL |
-| `linux-x64-Release` | Linux | OpenGL | — |
-| `mac-universal-Release` | macOS | OpenGL | Intel + Apple Silicon |
-| `android-arm64-Release` | Android | — | CLI only |
+| `windows-x64-Release` | Windows | D3D11 + OpenGL | Default, includes AI Denoise |
+| `windows-x64-OpenGL-Release` | Windows | OpenGL only | Includes AI Denoise |
+| `linux-x64-Release` | Linux | OpenGL | Includes AI Denoise |
+| `mac-universal-Release` | macOS | OpenGL | Intel + Apple Silicon, includes AI Denoise |
+| `android-arm64-Release` | Android | — | CLI only, includes AI Denoise |
+
+All presets enable `ENABLE_AI_DENOISE=ON` by default. To build without AI, set `-DENABLE_AI_DENOISE=OFF` manually.
 
 ### Manual Build (without presets)
 
@@ -504,6 +534,9 @@ gemini-watermark-tool/
 │   │   ├── watermark_engine.hpp/cpp
 │   │   ├── watermark_detector.hpp/cpp
 │   │   ├── blend_modes.hpp/cpp
+│   │   ├── ai_denoise.hpp/cpp         # NCNN FDnCNN denoiser
+│   │   ├── ai_denoise_model.cpp       # Embedded model weights (isolated TU)
+│   │   ├── ncnn_shim.hpp              # Vulkan loader shim for NCNN
 │   │   └── types.hpp
 │   ├── cli/                    # CLI application
 │   │   └── cli_app.hpp/cpp
@@ -525,6 +558,9 @@ gemini-watermark-tool/
 │       │   └── d3d11_backend.hpp/cpp   # Direct3D 11 implementation (Windows)
 │       └── resources/
 │           └── style.hpp             # Theme and layout constants
+├── external/
+│   └── ncnn/                         # NCNN source (git submodule)
+│       └── model-convert/output/     # Converted FDnCNN model headers
 ├── report/
 │   └── synthid_research.md     # SynthID research documentation
 └── resources/
@@ -548,6 +584,8 @@ All dependencies are managed via vcpkg and statically linked:
 | glad | OpenGL loader (GUI) |
 | nativefiledialog-extended | Native file dialogs (GUI) |
 | WIL | Windows Implementation Libraries (D3D11 backend, Windows only) |
+| NCNN | Neural network inference runtime (AI Denoise, git submodule) |
+| volk | Vulkan meta-loader for dynamic dispatch (AI Denoise, vcpkg) |
 
 ---
 
@@ -576,15 +614,25 @@ original = (watermarked - α × logo) / (1 - α)
 
 This mathematical inversion produces exact restoration of the original pixels.
 
-### Residual Cleanup (Software Inpainting)
+### Residual Cleanup (Software Inpainting + AI Denoise)
 
-When images have been resized or recompressed after watermarking, the exact math no longer holds perfectly. A gradient-weighted inpainting pass can clean up the residual artifacts:
+When images have been resized or recompressed after watermarking, the exact math no longer holds perfectly. Two approaches are available for cleaning up residual artifacts:
 
+**Software Inpainting** (NS / TELEA / Gaussian):
 ```
 1. Compute gradient magnitude from watermark alpha channel
 2. Build soft weight mask: stronger where alpha gradient is high
 3. Apply selected inpainting method (NS / TELEA / Gaussian blend)
 4. Blend result using weight mask — only affected pixels are modified
+```
+
+**AI Denoise** (FDnCNN, recommended):
+```
+1. Compute gradient mask from alpha map (locate sparkle edges)
+2. Run FDnCNN inference on padded ROI (Vulkan GPU or CPU)
+   Input:  [R, G, B, sigma/255] → Output: denoised clean image
+3. Per-pixel masked blend: mask × denoised + (1-mask) × original
+   → Only edge artifacts repaired, clean background untouched
 ```
 
 ---
@@ -612,6 +660,18 @@ MIT License
 - [Removing Gemini AI Watermarks: A Deep Dive into Reverse Alpha Blending](https://allenkuo.medium.com/removing-gemini-ai-watermarks-a-deep-dive-into-reverse-alpha-blending-bbbd83af2a3f)
 - [SynthID Image Watermark Research Report](https://allenkuo.medium.com/synthid-image-watermark-research-report-9b864b19f9cf)
 - [SynthID Research Report](report/synthid_research.md) — Why invisible watermarks cannot be removed
+
+## Third-Party Licenses
+
+This project incorporates the following open-source components:
+
+| Component | License | Usage |
+|-----------|---------|-------|
+| [NCNN](https://github.com/Tencent/ncnn) | BSD-3-Clause | Neural network inference runtime (Vulkan GPU + CPU) |
+| [FDnCNN model weights](https://github.com/cszn/KAIR) (KAIR) | MIT | Pre-trained denoising model (embedded FP16 weights) |
+| [volk](https://github.com/zeux/volk) | MIT | Vulkan meta-loader for dynamic dispatch |
+
+Full license texts for these components are available in their respective repositories.
 
 ---
 

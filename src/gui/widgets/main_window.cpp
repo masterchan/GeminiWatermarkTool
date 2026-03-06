@@ -581,6 +581,15 @@ void MainWindow::render_control_panel() {
         ImGui::Indent();
 
         if (state.custom_watermark.has_region) {
+            ImGui::SetNextItemWidth(-1);
+            ImGui::SliderInt("##snap_max_size", &state.custom_watermark.snap_max_size,
+                            32, 320, "Max Size: %d px");
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "Maximum watermark size for Snap search.\n"
+                    "Standard: 48/96 px (default max 160)\n"
+                    "Increase for resized images with larger watermarks.");
+            }
             // Re-detect button (full-image detection)
             if (ImGui::SmallButton("Re-detect")) {
                 state.custom_watermark.detection_attempted = false;

@@ -111,6 +111,7 @@ struct CustomWatermarkState {
     // Snap result (from guided multi-scale detection)
     std::optional<SnapResult> snap_result;
     bool snap_in_progress{false};           // Snap search is running
+    int snap_max_size{160};                 // Max watermark size for snap search (32-320)
 
     void clear() {
         region = cv::Rect{0, 0, 0, 0};
