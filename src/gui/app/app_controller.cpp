@@ -470,8 +470,9 @@ void AppController::snap_to_watermark() {
     // Determine scale range based on image size
     // Standard sizes: 48 for <=1024, 96 for >1024
     // Allow generous range for resized images
-    int min_size = 32;
+    int min_size = std::max(cw.snap_min_size, 8);
     int max_size = std::min(cw.snap_max_size, std::min(search_rect.width, search_rect.height));
+    if (min_size > max_size) min_size = max_size;
 
     // Run guided detection
     GuidedDetectionResult det = m_engine->guided_detect(

@@ -403,7 +403,7 @@ void process_single_advanced(
                     int max_sz = std::min(snap_max_size,
                                           std::min(fb_region.width, fb_region.height));
                     GuidedDetectionResult snap = engine.guided_detect(
-                        image, fb_region, nullptr, 32, max_sz);
+                        image, fb_region, nullptr, 16, max_sz);
 
                     if (snap.found && (snap.confidence >= snap_threshold || force_process)) {
                         wm_region = snap.match_rect;
@@ -451,7 +451,7 @@ void process_single_advanced(
             int max_sz = std::min(snap_max_size,
                                   std::min(explicit_region.width, explicit_region.height));
             GuidedDetectionResult snap = engine.guided_detect(
-                image, explicit_region, nullptr, 32, max_sz);
+                image, explicit_region, nullptr, 16, max_sz);
 
             if (snap.found && snap.confidence >= snap_threshold) {
                 wm_region = snap.match_rect;

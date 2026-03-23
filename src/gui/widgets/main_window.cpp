@@ -581,9 +581,23 @@ void MainWindow::render_control_panel() {
         ImGui::Indent();
 
         if (state.custom_watermark.has_region) {
+            // Clamp min <= max
+            if (state.custom_watermark.snap_min_size > state.custom_watermark.snap_max_size)
+                state.custom_watermark.snap_min_size = state.custom_watermark.snap_max_size;
+
+            ImGui::SetNextItemWidth(-1);
+            ImGui::SliderInt("##snap_min_size", &state.custom_watermark.snap_min_size,
+                            8, 64, "Min Size: %d px");
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(
+                    "Minimum watermark size for Snap search.\n"
+                    "Lower to detect small preview watermarks (~16-28px).\n"
+                    "Standard preview: 16px  Standard: 48/96px");
+            }
+
             ImGui::SetNextItemWidth(-1);
             ImGui::SliderInt("##snap_max_size", &state.custom_watermark.snap_max_size,
-                            32, 320, "Max Size: %d px");
+                            16, 320, "Max Size: %d px");
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip(
                     "Maximum watermark size for Snap search.\n"

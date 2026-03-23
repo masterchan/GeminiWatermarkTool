@@ -512,14 +512,21 @@ GuidedDetectionResult WatermarkEngine::guided_detect(
     // To counter this, we weight scores by a size factor that prefers
     // templates closer to the known standard size (96px).
     //
-    //   adjusted_score = raw_ncc * sqrt(scale / kReferenceSize)
+    //   adjusted_score = raw_ncc * cbrt(scale / kReferenceSize)
     //
-    // This ensures a 96x96 match at NCC=0.30 beats a 24x24 match at NCC=0.58.
+    // Using cbrt (cube root) instead of sqrt gives a gentler penalty for
+    // small watermarks (~28px preview tier) while still preferring larger
+    // matches when NCC scores are similar.
+    //
+    //   scale  28: weight = 0.66  (sqrt was 0.54)
+    //   scale  32: weight = 0.69  (sqrt was 0.58)
+    //   scale  48: weight = 0.79  (sqrt was 0.71)
+    //   scale  96: weight = 1.00  (same)
     // =========================================================================
     constexpr double kReferenceSize = 96.0;
 
     auto size_adjusted_score = [&](double raw_ncc, int scale) -> double {
-        double weight = std::sqrt(static_cast<double>(scale) / kReferenceSize);
+        double weight = std::cbrt(static_cast<double>(scale) / kReferenceSize);
         weight = std::min(weight, 1.0);  // Cap at 1.0 for scales >= 96
         return raw_ncc * weight;
     };
@@ -548,7 +555,7 @@ GuidedDetectionResult WatermarkEngine::guided_detect(
         double adjusted_score;    // Size-adjusted score
     };
 
-    constexpr int kCoarseScaleStep = 8;
+    constexpr int kCoarseScaleStep = 4;
     constexpr int kTopK = 5;
 
     std::vector<Candidate> coarse_candidates;

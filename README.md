@@ -76,7 +76,7 @@ Enable AI coding agents (Claude Code, Cursor, Windsurf, etc.) to use GeminiWater
 - Drag & drop or open any supported image
 - Auto-detect watermark size (48×48 / 96×96) or select manually
 - **Custom watermark mode**: draw a search region interactively, resize with 8-point anchors, fine-tune position with WASD keys
-- **Multi-scale guided detection (Snap Engine)**: coarse-to-fine NCC template matching auto-locks to the exact watermark position within your drawn region — supports variable sizes from 32–320px with adjustable search range slider
+- **Multi-scale guided detection (Snap Engine)**: coarse-to-fine NCC template matching auto-locks to the exact watermark position within your drawn region — supports variable sizes from 16–320px with adjustable Min Size and Max Size sliders (Min Size default 16px covers Gemini preview-tier watermarks ~28px)
 - Real-time before/after comparison (press **V**)
 - One-key processing (**X**) and revert (**Z**)
 - Zoom, pan (Space/Alt + drag, mouse wheel), and fit-to-window
@@ -395,7 +395,7 @@ Supported formats: `.jpg`, `.jpeg`, `.png`, `.webp`, `.bmp`
 | `--region <spec>` | Explicit watermark region (see Region Syntax below) |
 | `--fallback-region <spec>` | Search region when standard detection fails |
 | `--snap` | Enable multi-scale snap search within region |
-| `--snap-max-size <N>` | Max snap search size, 32–320 (default: 160) |
+| `--snap-max-size <N>` | Max snap search size, 16–320 (default: 160) |
 | `--snap-threshold <N>` | Min snap confidence to accept, 0.0–1.0 (default: 0.60) |
 | `--denoise <method>` | Cleanup after removal: `ai`, `ns`, `telea`, `soft`, `off` |
 | `--sigma <N>` | AI denoise noise level, 1–150 (default: 50) |
@@ -429,6 +429,10 @@ GeminiWatermarkTool -i ./photos/ -o ./clean/ \
 # Resized watermarks: expand snap search to 320px
 GeminiWatermarkTool -i ./photos/ -o ./clean/ \
     --fallback-region br:80,80,200,200 --snap --snap-max-size 320 --denoise ai
+
+# Gemini preview images (small ~28px watermark): use lower snap-threshold
+GeminiWatermarkTool -i preview.jpg -o clean.jpg \
+    --fallback-region br:auto --snap --snap-threshold 0.30 --denoise ai --sigma 13 --strength 175
 
 # Force process at explicit region (all images have watermark at same spot)
 GeminiWatermarkTool -i ./photos/ -o ./clean/ \
