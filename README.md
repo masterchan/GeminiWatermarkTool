@@ -7,6 +7,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/allenk/GeminiWatermarkTool?style=social)](https://github.com/allenk/GeminiWatermarkTool)
 
+📢 **Now available: [Veo Video Watermark Remover](https://github.com/allenk/VeoWatermarkRemover)** — remove Google Veo "Veo" text watermarks from videos, same reverse alpha blending engine. Demo build (Win x64).
+
 > ## 📌 Original Author Notice (Reverse Alpha Blending)
 > I am the original author of **GeminiWatermarkTool** and the reverse **alpha-blending** restoration method used to remove the visible "Gemini" watermark while preserving image detail (Allen Kuo / allenk).
 >
