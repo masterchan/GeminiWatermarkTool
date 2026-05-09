@@ -484,7 +484,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 # linker also generates a default manifest at the same resource ID, causing
 # CVT1100 duplicate resource errors.
 if(WIN32 AND MSVC)
-    target_link_options(${EXE_NAME} PRIVATE "/MANIFEST:NO")
+    target_link_options(${PROJECT_NAME} PRIVATE "/MANIFEST:NO")
 endif()
 
 # =============================================================================
