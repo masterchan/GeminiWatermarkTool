@@ -447,6 +447,12 @@ jobs:
         zip gwt-mini-macos-universal.zip gwt-mini
         rm gwt-mini
 
+    - name: Generate SHA256SUMS.txt
+      run: |
+        sha256sum *.zip > SHA256SUMS.txt
+        echo "--- SHA256SUMS.txt ---"
+        cat SHA256SUMS.txt
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
@@ -458,6 +464,7 @@ jobs:
           gwt-mini-windows-x64.zip
           gwt-mini-linux-x64.zip
           gwt-mini-macos-universal.zip
+          SHA256SUMS.txt
         draft: false
         prerelease: false
       env:
