@@ -20,8 +20,9 @@
 #include "gui/gui_app.hpp"
 #endif
 
-#include <string_view>
+#include <cstdio>
 #include <cstring>
+#include <string_view>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -79,6 +80,33 @@ void setup_console() {
     return false;
 }
 
+#ifdef _WIN32
+/**
+ * Detect whether we own our console window.
+ *
+ * When the binary is launched via Explorer drag-drop or double-click,
+ * Windows creates a transient console attached to our process; that
+ * console disappears the instant we exit, taking any error message
+ * printed to stdout/stderr with it. From the user's perspective this
+ * looks like a silent crash even when the program reported the failure
+ * cleanly.
+ *
+ * When launched from cmd / PowerShell / Windows Terminal / a CI shell,
+ * the parent shell owns the console and it persists across our exit,
+ * so the user sees the output normally.
+ *
+ * This helper differentiates the two by comparing the console window's
+ * owning process ID to our own.
+ */
+bool we_own_console() {
+    HWND con = GetConsoleWindow();
+    if (!con) return false;
+    DWORD console_pid = 0;
+    GetWindowThreadProcessId(con, &console_pid);
+    return console_pid == GetCurrentProcessId();
+}
+#endif
+
 /**
  * Remove GUI-specific flags from argv for CLI processing
  */
@@ -115,5 +143,18 @@ int main(int argc, char** argv) {
     filter_gui_flags(argc, argv);
 
     // Run CLI mode
-    return gwt::cli::run(argc, argv);
+    int exit_code = gwt::cli::run(argc, argv);
+
+#ifdef _WIN32
+    // If we were drag-dropped onto by Explorer the transient console will
+    // close the moment we exit, hiding any error message. Hold the window
+    // open so the user can read why we failed.
+    if (exit_code != 0 && we_own_console()) {
+        std::fputs("\nPress ENTER to close...", stderr);
+        std::fflush(stderr);
+        std::getchar();
+    }
+#endif
+
+    return exit_code;
 }

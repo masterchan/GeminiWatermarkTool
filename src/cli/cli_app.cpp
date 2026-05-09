@@ -660,8 +660,10 @@ int run_simple_mode(int argc, char** argv) {
             if (!fs::exists(input)) {
                 fmt::print(fmt::fg(fmt::color::red), "[ERROR] ");
                 fmt::print("File not found: {}\n", gwt::to_utf8(input));
+#ifdef _WIN32
                 fmt::print(fmt::fg(fmt::color::gray),
-                           "  (Path may contain encoding issues on Windows without UTF-8 beta)\n");
+                           "  (Note: full Unicode path support requires Windows 10 version 1903 or later)\n");
+#endif
                 result.failed++;
                 continue;
             }
@@ -917,14 +919,14 @@ int run(int argc, char** argv) {
         fs::path input(input_path);
         fs::path output(output_path);
 
-        // Manual existence check with better error messages for CJK paths
+        // Manual existence check with better error messages for non-ASCII paths
         if (!fs::exists(input)) {
             fmt::print(fmt::fg(fmt::color::red), "[ERROR] ");
             fmt::print("Input path not found: {}\n", gwt::to_utf8(input));
+#ifdef _WIN32
             fmt::print(fmt::fg(fmt::color::gray),
-                       "  (If the path contains CJK characters, try enabling Windows UTF-8 beta\n");
-            fmt::print(fmt::fg(fmt::color::gray),
-                       "   or use the GUI version which handles Unicode paths correctly)\n");
+                       "  (Note: full Unicode path support requires Windows 10 version 1903 or later)\n");
+#endif
             return 1;
         }
 

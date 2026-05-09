@@ -72,11 +72,16 @@ inline std::string filename_utf8(const std::filesystem::path& path) {
  * Convert UTF-8 string to filesystem path
  *
  * SDL always returns UTF-8 on all platforms (including drop events).
- * On Windows without UTF-8 beta enabled, std::filesystem::path(const char*)
- * interprets the string as ANSI (system code page), causing corruption
- * for non-ASCII characters (CJK, etc.).
+ * On Windows std::filesystem::path(const char*) interprets the string as
+ * ANSI (the process code page) when constructing the internal wide
+ * representation, which corrupts non-ASCII characters unless the process
+ * code page is UTF-8.
  *
- * This function correctly handles UTF-8 → wstring → path on Windows.
+ * Our binary embeds an activeCodePage=UTF-8 manifest (Windows 10 1903+),
+ * which makes that interpretation Just Work. This helper is still useful
+ * defensively when we know a string came from a UTF-8 source (e.g. SDL
+ * drop event) regardless of process code page, and stays correct on
+ * pre-1903 Windows where the manifest is ignored.
  *
  * @param utf8_str  UTF-8 encoded string (e.g., from SDL drop event)
  * @return          Properly constructed filesystem path

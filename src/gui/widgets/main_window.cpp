@@ -373,8 +373,9 @@ bool MainWindow::handle_event(const SDL_Event& event) {
 
     // Handle drag & drop
     if (event.type == SDL_EVENT_DROP_FILE) {
-        // SDL always returns UTF-8 paths on all platforms
-        // On Windows without UTF-8 beta, we must convert properly
+        // SDL always returns UTF-8 paths on all platforms.
+        // path_from_utf8() forces a CP_UTF8 conversion so this stays
+        // correct on pre-1903 Windows where our manifest is ignored.
         std::filesystem::path path = gwt::path_from_utf8(event.drop.data);
 
         if (std::filesystem::is_directory(path)) {
